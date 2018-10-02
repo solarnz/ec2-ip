@@ -20,7 +20,7 @@ fn get_instances(
         Err(_err) => return Err("Invalid region name".to_string()),
     };
 
-    let client = Ec2Client::simple(region);
+    let client = Ec2Client::new(region);
     let mut region_instances: Vec<Instance> = vec![];
 
     let mut input = DescribeInstancesRequest {
@@ -34,7 +34,7 @@ fn get_instances(
     let mut first = true;
 
     while first || input.next_token.is_some() {
-        let result = match client.describe_instances(&input).sync() {
+        let result = match client.describe_instances(input.clone()).sync() {
             Ok(result) => result,
             Err(err) => return Err(err.to_string()),
         };
