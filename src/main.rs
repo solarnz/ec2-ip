@@ -14,10 +14,9 @@ use std::collections::HashMap;
 use std::default::Default;
 use std::io::Cursor;
 
-fn get_instances(
-    region_name: String,
-    filters: Option<Vec<Filter>>,
-) -> Result<Vec<Instance>, String> {
+fn get_instances(region_name: String,
+                 filters: Option<Vec<Filter>>)
+                 -> Result<Vec<Instance>, String> {
     let region: Region = match region_name.parse() {
         Ok(region) => region,
         Err(_err) => return Err("Invalid region name".to_string()),
@@ -61,37 +60,29 @@ fn get_instances(
 
 pub fn main() {
     let options = App::new("ec2-skim")
-        .arg(
-            Arg::with_name("region")
-                .help("The region to search for instances in")
-                .takes_value(true)
-                .short("r")
-                .long("region")
-                .multiple(true)
-                .required(true),
-        )
-        .arg(
-            Arg::with_name("public_ip")
-                .help("Returns the public ip of the selected instance")
-                .long("public-ip")
-                .takes_value(false),
-        )
-        .arg(
-            Arg::with_name("filter")
-                .help("EC2 filters to filter by")
-                .short("f")
-                .long("filter")
-                .takes_value(true)
-                .multiple(true),
-        )
-        .arg(
-            Arg::with_name("display_tag")
-                .help("Which tags to show in the list of instances")
-                .short("d")
-                .long("display-tag")
-                .takes_value(true)
-                .multiple(true),
-        )
+        .arg(Arg::with_name("region")
+                 .help("The region to search for instances in")
+                 .takes_value(true)
+                 .short("r")
+                 .long("region")
+                 .multiple(true)
+                 .required(true))
+        .arg(Arg::with_name("public_ip")
+                 .help("Returns the public ip of the selected instance")
+                 .long("public-ip")
+                 .takes_value(false))
+        .arg(Arg::with_name("filter")
+                 .help("EC2 filters to filter by")
+                 .short("f")
+                 .long("filter")
+                 .takes_value(true)
+                 .multiple(true))
+        .arg(Arg::with_name("display_tag")
+                 .help("Which tags to show in the list of instances")
+                 .short("d")
+                 .long("display-tag")
+                 .takes_value(true)
+                 .multiple(true))
         .get_matches();
 
     let mut all_instances: HashMap<String, Instance> = HashMap::new();
@@ -106,9 +97,9 @@ pub fn main() {
 
             // We will always assume we're looking for currently running instances
             let mut filters: Vec<Filter> = vec![Filter {
-                name: Some("instance-state-name".to_string()),
-                values: Some(vec!["running".to_string()]),
-            }];
+                                                    name: Some("instance-state-name".to_string()),
+                                                    values: Some(vec!["running".to_string()]),
+                                                }];
 
             for filter in filter_options {
                 let mut parts: Vec<String> = filter.split("=").map(String::from).collect();
@@ -122,30 +113,31 @@ pub fn main() {
                 };
 
                 filters.push(Filter {
-                    name: name,
-                    values: values,
-                });
+                                 name: name,
+                                 values: values,
+                             });
             }
 
             filter_groups.push(filters);
         }
     } else {
         let mut filters: Vec<Filter> = vec![Filter {
-            name: Some("instance-state-name".to_string()),
-            values: Some(vec!["running".to_string()]),
-        }];
+                                                name: Some("instance-state-name".to_string()),
+                                                values: Some(vec!["running".to_string()]),
+                                            }];
         filter_groups.push(filters);
     }
 
     if let Some(regions) = options.values_of("region") {
-        let combinations: Vec<(&str, Vec<Filter>)> = itertools::Itertools::cartesian_product(regions, filter_groups).collect();
+        let combinations: Vec<(&str, Vec<Filter>)> =
+            itertools::Itertools::cartesian_product(regions, filter_groups).collect();
 
         all_instances = combinations.par_iter()
             .map(|(region, filters)| get_instances(region.to_string(), Some(filters.to_vec())))
             .map(|i| match i {
-                Ok(instances) => instances,
-                Err(err) => panic!(err),
-            })
+                     Ok(instances) => instances,
+                     Err(err) => panic!(err),
+                 })
             .flatten()
             .map(|instance| (instance.clone().instance_id.unwrap(), instance))
             .collect();
