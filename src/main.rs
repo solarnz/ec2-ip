@@ -1,9 +1,12 @@
 extern crate clap;
+extern crate itertools;
+extern crate rayon;
 extern crate rusoto_core;
 extern crate rusoto_ec2;
 extern crate skim;
 
 use clap::{App, Arg};
+use rayon::prelude::*;
 use rusoto_core::Region;
 use rusoto_ec2::{DescribeInstancesRequest, Ec2, Ec2Client, Filter, Instance};
 use skim::{Skim, SkimOptions};
@@ -135,20 +138,14 @@ pub fn main() {
     }
 
     if let Some(regions) = options.values_of("region") {
-        for region in regions {
-            for filters in filter_groups.clone() {
-                let instances = match get_instances(region.to_string(), Some(filters.clone())) {
-                    Ok(instances) => instances.clone(),
-                    Err(err) => panic!(err),
-                };
+        let combinations: Vec<(&str, Vec<Filter>)> = itertools::Itertools::cartesian_product(regions, filter_groups).collect();
 
-                for instance in instances {
-                    if let Some(instance_id) = instance.clone().instance_id {
-                        all_instances.insert(instance_id, instance);
-                    }
-                }
-            }
-        }
+        all_instances = combinations.par_iter()
+            .map(|(region, filters)| get_instances(region.to_string(), Some(filters.to_vec())))
+            .filter_map(Result::ok)
+            .flatten()
+            .map(|instance| (instance.clone().instance_id.unwrap(), instance))
+            .collect();
     }
 
     let mut skim_input = String::new();
