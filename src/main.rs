@@ -142,7 +142,10 @@ pub fn main() {
 
         all_instances = combinations.par_iter()
             .map(|(region, filters)| get_instances(region.to_string(), Some(filters.to_vec())))
-            .filter_map(Result::ok)
+            .map(|i| match i {
+                Ok(instances) => instances,
+                Err(err) => panic!(err),
+            })
             .flatten()
             .map(|instance| (instance.clone().instance_id.unwrap(), instance))
             .collect();
